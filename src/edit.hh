@@ -1512,7 +1512,6 @@ class field<gfx::rgb888> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const gfx::color *m_object = nullptr;
     const gfx::rgb888 *m_object;
 
 public:

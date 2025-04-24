@@ -475,7 +475,8 @@ widget_im::widget_im(container &parent, layout layout) :
     // Set up an appropriate ImGui style. The default is white-on-black which
     // clashes with most other defaults.
     auto &style = ImGui::GetStyle();
-    style.WindowRounding = 0.0f;
+    style.WindowRounding = 1.0f;
+    /*
     ImVec4 default_color = { 1.0f, 0.0f, 1.0f, 0.25f };
     style.Colors[ImGuiCol_Text]                  = { 0.0f, 0.0f, 0.0f, 1.0f };
     style.Colors[ImGuiCol_TextDisabled]          = default_color;
@@ -526,7 +527,7 @@ widget_im::widget_im(container &parent, layout layout) :
     style.Colors[ImGuiCol_NavWindowingDimBg]     = default_color;
     style.Colors[ImGuiCol_ModalWindowDimBg]      = default_color;
     static_assert(ImGuiCol_COUNT == 48, "ImGui color palette has changed!");
-
+    */
     ImGui::SetCurrentContext(nullptr);
 }
 

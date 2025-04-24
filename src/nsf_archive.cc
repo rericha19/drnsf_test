@@ -120,7 +120,7 @@ util::blob archive::decompress_spage(const unsigned char *data, size_t &size)
     // Decompress the page.
     size = 12;
     w.begin();
-    while (w.length() < length) {
+    while (uint32_t(w.length()) < length) {
         r.begin(&data[size], 2);
         auto fmt = r.read_ubits(1);
         uint32_t seek, span;
