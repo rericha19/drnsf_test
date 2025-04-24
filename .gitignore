@@ -1,4 +1,7 @@
 # GITIGNORE file for DRNSF
 
 # `build' directory - reserved for user
-/build
+# ignore everything in build except for build.bat
+build/*
+!build/build.bat
+

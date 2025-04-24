@@ -18,7 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required (VERSION 3.12)
+set(ENV{PKG_CONFIG_PATH}, "C:/Users/samo1/Desktop/vcpkg/installed/x64-windows/lib/pkgconfig")
+set(CMAKE_TOOLCHAIN_FILE "C:\\Users\\samo1\\Desktop\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake" CACHE STRING "")
+cmake_minimum_required (VERSION 3.5)
 project (DRNSF VERSION 0.0)
 
 # Option: FRONTEND
@@ -243,13 +245,8 @@ set_target_properties (drnsf PROPERTIES
 find_package (PkgConfig REQUIRED)
 
 # Dependency: cairo
-if (USE_X11)
-    pkg_search_module (CAIRO REQUIRED cairo-xlib IMPORTED_TARGET)
-    target_link_libraries (drnsf PRIVATE PkgConfig::CAIRO)
-elseif (USE_WINAPI)
-    pkg_search_module (CAIRO REQUIRED cairo-win32 IMPORTED_TARGET)
-    target_link_libraries (drnsf PRIVATE PkgConfig::CAIRO)
-endif ()
+pkg_search_module(CAIRO REQUIRED IMPORTED_TARGET cairo)
+target_link_libraries(drnsf PRIVATE PkgConfig::CAIRO)
 
 # Dependency: X11
 if (USE_X11)
@@ -262,9 +259,9 @@ endif ()
 find_package (OpenGL REQUIRED)
 target_link_libraries (drnsf PRIVATE OpenGL::GL)
 
-# Dependency: libepoxy
-pkg_search_module (EPOXY REQUIRED epoxy IMPORTED_TARGET)
-target_link_libraries (drnsf PRIVATE PkgConfig::EPOXY)
+# Epoxy
+pkg_search_module(EPOXY REQUIRED IMPORTED_TARGET epoxy)
+target_link_libraries(drnsf PRIVATE PkgConfig::EPOXY)
 
 # Dependency: GLM
 # (header-only, included as a git submodule)
