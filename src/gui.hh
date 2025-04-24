@@ -194,6 +194,18 @@ enum class mousebtn : int {
 };
 
 /*
+ * gui::keymods
+ *
+ * Used to store the state of modifier keys (ctrl, shift, alt) for use in input
+ * events and callbacks.
+ */
+struct keymods {
+    bool ctrl;
+    bool alt;
+    bool shift;
+};
+
+/*
  * gui::layout
  *
  * FIXME explain
@@ -333,6 +345,7 @@ public:
 
 // defined later in this file
 class container;
+class real_container;
 class window;
 
 /*
@@ -341,7 +354,7 @@ class window;
  * Common base class for all widget types.
  */
 class widget : public util::nocopy {
-    friend class container;
+    friend class real_container;
     friend class window;
     friend class composite;
     friend class widget_gl;
@@ -377,7 +390,7 @@ protected:
     // (var) m_parent
     // A reference to the container this widget exists inside of. All widgets
     // must exist within a container.
-    container &m_parent;
+    real_container &m_parent;
 
     // (var) m_layout
     // The layout area which defines the location and size of this widget
@@ -421,13 +434,13 @@ protected:
     // it will receive both a `mouseleave' call followed by a `mousemove' call.
     //
     // WINAPI: No grabbing occurs.
-    virtual void mousebutton(mousebtn btn, bool down) {}
+    virtual void mousebutton(mousebtn btn, bool down, keymods mods) {}
 
     // (func) key
     // Called when a key is pressed or released while this widget has focus.
     //
     // The default implementation performs no operation.
-    virtual void key(keycode code, bool down) {}
+    virtual void key(keycode code, bool down, keymods mods) {}
 
     // (func) text
     // Called when text is entered into the widget. This is different from key
@@ -518,9 +531,24 @@ public:
 /*
  * gui::container
  *
+ * Abstract base class for objects which can contain widgets.
+ *
  * FIXME explain
  */
 class container : private util::nocopy {
+public:
+    // (pure func) get_real_container
+    // Returns a reference to the `real_container' object which actually
+    // holds the contained widget objects.
+    virtual real_container &get_real_container() = 0;
+};
+
+/*
+ * gui::real_container
+ *
+ * FIXME explain
+ */
+class real_container : public container {
     friend class widget;
 
 private:
@@ -554,6 +582,14 @@ public:
         int &ctn_y,
         int &ctn_w,
         int &ctn_h) = 0;
+
+    // (func) get_real_container
+    // Overrides the `container::get_real_container' function to return the
+    // object itself, since this is the real container.
+    real_container &get_real_container() final override
+    {
+        return *this;
+    }
 };
 
 /*
@@ -564,14 +600,14 @@ public:
  * Composite widgets do not receive any user input events such as mouse clicks,
  * mouse movement, or key presses.
  */
-class composite : private widget, public container {
+class composite : private widget, public real_container {
 private:
     // input events not available for this type of widget
     void mousemove(int x, int y) final override {}
     void mouseleave() final override {}
     void mousewheel(int delta_y) final override {}
-    void mousebutton(mousebtn btn, bool down) final override {}
-    void key(keycode code, bool down) final override {}
+    void mousebutton(mousebtn btn, bool down, keymods mods) final override {}
+    void key(keycode code, bool down, keymods mods) final override {}
     void text(const char *str) final override {}
 
     // (func) on_resize
@@ -622,7 +658,7 @@ class menubar;
  *
  * FIXME explain
  */
-class window : public container {
+class window : public real_container {
     friend class menubar;
     friend void run();
 
@@ -700,7 +736,7 @@ public:
  * WINAPI: This is a top-level window with WS_POPUP set and placed in the
  * topmost z-order (the window is "always on top").
  */
-class popup : public container {
+class popup : public real_container {
     friend void run();
 
 private:
@@ -919,11 +955,11 @@ private:
 
     // (func) mousebutton
     // FIXME explain
-    void mousebutton(mousebtn btn, bool down) final override;
+    void mousebutton(mousebtn btn, bool down, keymods mods) final override;
 
     // (func) key
     // FIXME explain
-    void key(keycode code, bool down) final override;
+    void key(keycode code, bool down, keymods mods) final override;
 
     // (func) text
     // FIXME explain
@@ -1122,6 +1158,120 @@ public:
 };
 
 /*
+ * gui::tabview
+ *
+ * FIXME explain
+ */
+class tabview : private composite {
+public:
+    // inner class defined later in this file
+    class page;
+
+private:
+    // (var) m_bar
+    // A 2D widget which implements the selectable list of tabs at the top of
+    // the tabview.
+    struct bar : widget_2d {
+        friend class tabview;
+        friend class tabview::page;
+
+        tabview &m_view;
+
+        int m_mouse_x = -1;
+
+        explicit bar(tabview &view, layout layout) :
+            widget_2d(view, layout),
+            m_view(view) {}
+
+        void mousemove(int x, int y) override;
+        void mouseleave() override;
+        void mousebutton(mousebtn btn, bool down, keymods mods) override;
+        void draw_2d(int width, int height, cairo_t *cr) override;
+    } m_bar;
+
+    // (var) m_pages
+    // The list of pointers to all of the contained tab pages.
+    std::vector<page *> m_pages;
+
+    // (var) m_active_page
+    // A pointer to the currently selected tab page. This is null if no tabs
+    // are available.
+    page *m_active_page = nullptr;
+
+public:
+    // (ctor)
+    // Constructs an empty tabview.
+    tabview(container &parent, layout layout);
+
+    using composite::show;
+    using composite::hide;
+    using composite::get_layout;
+    using composite::set_layout;
+    using composite::get_real_size;
+    using composite::get_screen_pos;
+};
+
+/*
+ * gui::tabview::page
+ *
+ * FIXME explain
+ */
+class tabview::page : public container {
+    friend struct tabview::bar;
+
+private:
+    // (var) m_view
+    // The tabview this page is a member of.
+    tabview &m_view;
+
+    // (var) m_composite
+    // The composite widget which is the true parent of the tab page's widgets.
+    gui::composite m_composite;
+
+    // (var) m_visible
+    // True if this tab is visible, false otherwise. This is not the visibility
+    // of the tab page's contents; when false, the tab itself is not visible in
+    // the tabview's tab bar.
+    bool m_visible = false;
+
+    // (var) m_text
+    // The label text for this page's tab.
+    std::string m_text = "Tab";
+
+public:
+    // (explicit ctor)
+    // Constructs the tab page as an empty member of the given tabview. The
+    // lifetime of the page must not exceed the lifetime of the tabview.
+    //
+    // The page is initially invisible, and must be set visible to become
+    // available to the user.
+    explicit page(tabview &view);
+
+    // (dtor)
+    // Destroys the tab page and removes it from the tabview.
+    ~page();
+
+    // (func) get_visible, set_visible
+    // Gets or sets whether the tab is visible. Changing the visibility of a
+    // tab may trigger a change in the tabview's active tab selection.
+    bool get_visible() const;
+    void set_visible(bool visible);
+
+    // (func) get_text, set_text
+    // Gets or sets the text in the tab for this tab page.
+    std::string get_text() const;
+    void set_text(std::string text);
+
+    // (func) get_real_container
+    // Returns a reference to the inner composite container object which will
+    // be the true parent of the widgets added to the page
+    real_container &get_real_container() final override
+    {
+        return m_composite;
+    }
+};
+
+/*
  * gui::menu
  *
  * FIXME explain
@@ -1170,7 +1320,7 @@ private:
 
     // (func) mousebutton
     // Implements mousebutton for clicking to activate menu items.
-    void mousebutton(mousebtn btn, bool down) final override;
+    void mousebutton(mousebtn btn, bool down, keymods mods) final override;
 
 protected:
     // (pure func) close
@@ -1313,7 +1463,7 @@ private:
 
     // (func) mousebutton
     // Implements mouse click for clicking on menubar items.
-    void mousebutton(mousebtn btn, bool down) final override;
+    void mousebutton(mousebtn btn, bool down, keymods mods) final override;
 #endif
 
 public:

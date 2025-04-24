@@ -351,6 +351,150 @@ public:
     ~mode_menuset();
 };
 
+/*
+ * edit::assettool
+ *
+ * FIXME explain
+ */
+class assettool : protected gui::composite {
+private:
+    // (var) m_name
+    // The asset name attached to this tool, or null if the tool is not set
+    // for use with any asset.
+    res::atom m_name;
+
+    // (var) m_available
+    // FIXME explain
+    bool m_available = false;
+
+    // (var) h_context_project_change
+    // Hooks the context's on_project_change event to reset the asset tool's
+    // attached asset name when the project is closed or replaced.
+    decltype(context::on_project_change)::watch h_context_project_change;
+
+protected:
+    // (var) m_ctx
+    // A reference to the context which this tool operates in.
+    context &m_ctx;
+
+    // (func) set_available
+    // Changes the availability of the tool. This should be called by a derived
+    // type when the atom changes or when the asset changes and the new atom or
+    // asset is not compatible with the tool. This may result in the tool
+    // becoming hidden or disabled.
+    void set_available(bool available);
+
+    // (event) on_name_change
+    // Raised when the asset name attached to this tool changes, such as from
+    // a call to `set_name()' or when the context's project changes.
+    util::event<res::atom> on_name_change;
+
+public:
+    // (explicit ctor)
+    // FIXME explain
+    explicit assettool(
+        gui::container &parent,
+        gui::layout layout,
+        context &ctx);
+
+    // (dtor)
+    // Destroys the tool and removes it from its container.
+    virtual ~assettool() = default;
+
+    // (func) get_title
+    // Gets the title of this asset tool. This could be used in a title bar,
+    // label, tab, list node, tree node, etc.
+    virtual std::string get_title() const
+    {
+        return "Untitled";
+    }
+
+    // (func) get_name, set_name
+    // Gets or sets the asset name this asset tool is attached to. This is
+    // likely to change the availability of the tool.
+    //
+    // The new atom, if not null, must be part of the context's current
+    // project. When the context project changes, the current atom is changed
+    // to null automatically.
+    res::atom get_name() const;
+    void set_name(res::atom name);
+
+    using composite::show;
+    using composite::hide;
+    using composite::get_layout;
+    using composite::set_layout;
+    using composite::get_real_size;
+    using composite::get_screen_pos;
+
+    // (event) on_availability_change
+    // Raised when the availability of the asset tool changes. This may occur
+    // because the atom was changed (set_name), or the asset associated with
+    // the current atom has changed.
+    util::event<bool> on_availability_change;
+};
+
+/*
+ * edit::assettool_widget
+ *
+ * FIXME explain
+ */
+class assettool_widget : private gui::composite {
+private:
+    // (var) m_ctx
+    // The editor context the asset tools operate within.
+    context &m_ctx;
+
+    // (var) m_name
+    // The asset name this widget's tools are attached to.
+    res::atom m_name;
+
+    // (var) m_tabview
+    // FIXME explain
+    gui::tabview m_tabview;
+
+    // (var) m_tool_tabs
+    // List of the tabview pages for each asset tool in the widget.
+    std::vector<std::unique_ptr<gui::tabview::page>> m_tool_tabs;
+
+    // (var) m_tools
+    // List of the asset tools present in this widget.
+    std::vector<std::unique_ptr<assettool>> m_tools;
+
+    // (func) add_tool
+    // Internal function to add a new tool tab object to the widget.
+    template <typename T>
+    void add_tool();
+
+    // TODO - watch for context project change
+
+public:
+    // (explicit ctor)
+    // Constructs the asset tool widget with the given layout and parent
+    // container. The tools list is populated with assettool objects.
+    explicit assettool_widget(
+        gui::container &parent,
+        gui::layout layout,
+        context &ctx);
+
+    // (func) get_name, set_name
+    // Gets or sets the asset name the widget's asset tools are attached to.
+    // Changing this name is likely to change the availability of the various
+    // tools, which may cause some tabs to change visibility.
+    //
+    // The new atom, if not null, must be part of the context's current
+    // project. When the context project changes, the current atom is changed
+    // to null automatically.
+    res::atom get_name() const;
+    void set_name(res::atom name);
+
+    using composite::show;
+    using composite::hide;
+    using composite::get_layout;
+    using composite::set_layout;
+    using composite::get_real_size;
+    using composite::get_screen_pos;
+};
+
 namespace menus {
 
 /*
@@ -569,7 +713,7 @@ private:
     // not bound to any object. The field does not directly modify this object,
     // however it may be modified by external code during the lifetime of the
     // binding.
-    const T *m_object;
+    const T *m_object = nullptr;
 
 public:
     // (func) bind
@@ -618,7 +762,7 @@ class field<T, std::enable_if_t<std::is_integral<T>::value>> :
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const T *m_object;
+    const T *m_object = nullptr;
 
 public:
     // (func) bind
@@ -698,7 +842,7 @@ class field<T, std::enable_if_t<std::is_floating_point<T>::value>> :
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const T *m_object;
+    const T *m_object = nullptr;
 
 public:
     // (func) bind
@@ -752,7 +896,7 @@ class field<nsf::eid> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const nsf::eid *m_object;
+    const nsf::eid *m_object = nullptr;
 
 public:
     // (func) bind
@@ -815,7 +959,7 @@ class field<res::atom> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const res::atom *m_object;
+    const res::atom *m_object = nullptr;
 
 public:
     // (func) bind
@@ -856,7 +1000,7 @@ class field<res::ref<T>> : private field<res::atom> {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const res::ref<T> *m_object;
+    const res::ref<T> *m_object = nullptr;
 
 public:
     // (default ctor)
@@ -936,7 +1080,7 @@ class field<std::vector<T>> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const std::vector<T> *m_object;
+    const std::vector<T> *m_object = nullptr;
 
     // (var) m_elem_field
     // The `edit::field' which displays information about the selected element
@@ -966,6 +1110,9 @@ public:
 
     // (func) bind
     // See the non-specialized `edit::field' for details.
+    //
+    // If the current index is outside the bounds of the new binding, the
+    // index is changed and the `on_index_change' event is raised.
     void bind(const std::vector<T> *object)
     {
         m_object = object;
@@ -976,10 +1123,46 @@ public:
             // it to point at the final element.
             if (m_index >= m_object->size()) {
                 m_index = m_object->size() - 1;
+                on_index_change(m_index);
             }
             m_elem_field.bind(&m_object->operator [](m_index));
         } else {
             m_elem_field.bind(nullptr);
+        }
+    }
+
+    // (func) get_index, set_index
+    // Gets or sets the index of the currently selected element in the list.
+    //
+    // There are some constraints enforced on the current index, based on the
+    // list bound to the field:
+    //
+    //  - For an empty list, the index is always UINT_MAX.
+    //
+    //  - For a non-empty list, the index is always within the bounds of the
+    //  list.
+    //
+    //  - For an unbound field (no list), the index may have any value.
+    //
+    // When setting the index with `set_index', the given value is automatically
+    // constrained to the nearest acceptable value based on the above rules. If
+    // the constrained value is no different from the current index, no change
+    // occurs and the on_index_change event is not raised.
+    unsigned int get_index() const
+    {
+        return m_index;
+    }
+    void set_index(unsigned int index)
+    {
+        if (m_object && index >= m_object->size()) {
+            index = m_object->size() - 1;
+        }
+        if (index != m_index) {
+            m_index = index;
+            on_index_change(m_index);
+            if (m_object) {
+                m_elem_field.bind(&m_object->operator [](m_index));
+            }
         }
     }
 
@@ -1000,6 +1183,8 @@ public:
             return;
         }
         auto &obj = *m_object;
+
+        unsigned int index_at_start = m_index;
 
         ImGui::TextUnformatted("List of $"_fmt(obj.size()).c_str());
 
@@ -1104,11 +1289,27 @@ public:
         ImGui::NextColumn();
         ImGui::Unindent();
         ImGui::NextColumn();
+
+        if (index_at_start != m_index) {
+            on_index_change(m_index);
+        }
     }
 
     // (event) on_change
     // See the non-specialized `edit::field' for details.
     util::event<std::vector<T>> on_change;
+
+    // (event) on_index_change
+    // This event is raised whenever the current index for the field changes,
+    // whether explicitly by `set_index' or by changing the binding of the
+    // field such that the new bound list does not have an element with the
+    // current index.
+    //
+    // As a special case, the index is always UINT_MAX for empty lists.
+    //
+    // This event is raised *before* the subfield's binding is updated in
+    // any case.
+    util::event<unsigned int> on_index_change;
 };
 
 /*
@@ -1125,7 +1326,7 @@ class field<util::blob> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const util::blob *m_object;
+    const util::blob *m_object = nullptr;
 
     // (var) m_selected_byte
     // The offset of the currently selected byte in the editor. This may be
@@ -1174,7 +1375,7 @@ class field<gfx::vertex> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const gfx::vertex *m_object;
+    const gfx::vertex *m_object = nullptr;
 
     // (var) m_x_field, m_y_field, m_z_field
     // The subfields for X/Y/Z vertex components.
@@ -1311,6 +1512,7 @@ class field<gfx::rgb888> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
+    const gfx::color *m_object = nullptr;
     const gfx::rgb888 *m_object;
 
 public:
@@ -1413,7 +1615,7 @@ class field<gfx::corner> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const gfx::corner *m_object;
+    const gfx::corner *m_object = nullptr;
 
     // (var) m_vertex_field, m_color_field
     // The subfields for the corner's components.
@@ -1499,7 +1701,7 @@ class field<gfx::triangle> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const gfx::triangle *m_object;
+    const gfx::triangle *m_object = nullptr;
 
     // (var) m_corner_fields
     // The subfields for the three corner components.
@@ -1617,7 +1819,7 @@ class field<gfx::quad> : private util::nocopy {
 private:
     // (var) m_object
     // See the non-specialized `edit::field' for details.
-    const gfx::quad *m_object;
+    const gfx::quad *m_object = nullptr;
 
     // (var) m_corner_fields
     // The subfields for the four corner components.
@@ -1977,6 +2179,21 @@ public:
  *
  *  - Map mode
  *    edit_mode_map.hh (edit::mode_map)
+ *
+ *
+ * See other files for individual asset tools:
+ *
+ *  - New tool
+ *    edit_assettool_new.hh (edit::assettool_new)
+ *
+ *  - Main tool
+ *    edit_assettool_main.hh (edit::assettool_main)
+ *
+ *  - 3D model editing tool
+ *    edit_assettool_3d.hh (edit::assettool_3d)
+ *
+ *  - Properties tool
+ *    edit_assettool_props.hh (edit::assettool_props)
  */
 
 /*

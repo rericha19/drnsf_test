@@ -153,6 +153,7 @@ add_executable (drnsf
     src/gui_widget_im.cc
     src/gui_label.cc
     src/gui_treeview.cc
+    src/gui_tabview.cc
     src/gui_menu.cc
     src/gui_menubar.cc
     src/gui_file_dialog.cc
@@ -176,6 +177,7 @@ add_executable (drnsf
     src/render.hh
     src/render_scene.cc
     src/render_viewport.cc
+    src/render_marker.cc
     src/render_figure.cc
     src/render_reticle_fig.cc
     src/render_frameonly_fig.cc
@@ -184,11 +186,14 @@ add_executable (drnsf
     src/render_meshanim_fig.cc
     src/render_model_fig.cc
     src/render_world_fig.cc
+    src/render_highlight.cc
 
     src/edit.hh
     src/edit_context.cc
     src/edit_base_window.cc
     src/edit_mode_menuset.cc
+    src/edit_assettool.cc
+    src/edit_assettool_widget.cc
     src/edit_menus.cc
     src/edit_field.cc
     src/edit_asset_metactl.cc
@@ -203,6 +208,10 @@ add_executable (drnsf
     src/edit_mode_assets_mainctl.cc
     src/edit_mode_map.hh
     src/edit_mode_map_mainctl.cc
+    src/edit_assettool_new.hh
+    src/edit_assettool_main.hh
+    src/edit_assettool_3d.hh
+    src/edit_assettool_props.hh
     src/edit_mode_window.cc
 
     src/transact.hh

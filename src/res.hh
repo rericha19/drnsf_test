@@ -522,6 +522,12 @@ private:
     // The asset name this object is tracking.
     ref<T> m_name;
 
+    // (var) m_active
+    // True between invoking on_appear and on_disappear. This variable is used
+    // to prevent double-reporting when the tracker is given a name that is
+    // still calling its on_asset_appear handlers.
+    bool m_active = false;
+
     // (handler) h_asset_appear, h_asset_disappear
     // Hooks the on_asset_appear and on_asset_disappear events of m_name's
     // associated project to track whenever an asset appears or disappears on
@@ -539,6 +545,9 @@ public:
                 return;
             if (!m_name.ok())
                 return;
+            if (m_active)
+                return; // Already reported
+            m_active = true;
             on_acquire(&static_cast<T &>(asset));
         };
         h_asset_disappear <<= [this](asset &asset) {
@@ -546,6 +555,9 @@ public:
                 return;
             if (!m_name.ok())
                 return;
+            if (!m_active)
+                return; // Already reported
+            m_active = false;
             on_lose();
         };
     }
@@ -563,7 +575,8 @@ public:
         if (m_name) {
             h_asset_appear.unbind();
             h_asset_disappear.unbind();
-            if (m_name.ok()) {
+            if (m_name.ok() && m_active) {
+                m_active = false;
                 on_lose();
             }
         }
@@ -572,7 +585,8 @@ public:
             h_asset_appear.bind(m_name.get_proj()->on_asset_appear);
             h_asset_disappear.bind(m_name.get_proj()->on_asset_disappear);
             auto asset = m_name.get();
-            if (asset) {
+            if (asset && !m_active) {
+                m_active = true;
                 on_acquire(asset);
             }
         }
@@ -601,6 +615,81 @@ public:
     // `T', directly or indirectly.
     util::event<T *> on_acquire;
     util::event<> on_lose;
+};
+
+/*
+ * res::prop_tracker
+ *
+ * FIXME explain
+ */
+template <typename T>
+class prop_tracker : private tracker<T> {
+private:
+    // (var) m_prop
+    // The property this object is tracking. The underlying tracker tracks the
+    // name held as the value of this property. If this is null, the tracker may
+    // be tracking an asset name set directly on it with `set_name()'.
+    prop<ref<T>> *m_prop = nullptr;
+
+    // (handler) h_prop_change
+    // Hooks the on_change event of the property pointed to by m_prop to track
+    // the new asset name.
+    util::event<>::watch h_prop_change;
+
+public:
+    // (ctor)
+    // Constructs a tracker with no name set on it.
+    prop_tracker()
+    {
+        h_prop_change <<= [this] {
+            tracker<T>::set_name(m_prop->get());
+        };
+    }
+
+    using tracker<T>::get_name;
+
+    // (func) set_name
+    // Sets the name this object is tracking. This may only be done if the
+    // tracker has not been set to track a specific asset property.
+    void set_name(ref<T> name)
+    {
+        if (m_prop)
+            throw std::logic_error("prop_tracker::set_name: tracking prop");
+
+        tracker<T>::set_name(name);
+    }
+
+    // (func) get_prop, set_prop
+    // FIXME explain
+    prop<ref<T>> *get_prop() const
+    {
+        return m_prop;
+    }
+    void set_prop(prop<ref<T>> *prop)
+    {
+        if (!m_prop && get_name())
+            // TODO error
+            return;
+
+        if (m_prop == prop)
+            return;
+
+        if (m_prop) {
+            h_prop_change.unbind();
+            tracker<T>::set_name(nullptr);
+        }
+        m_prop = prop;
+        if (m_prop) {
+            h_prop_change.bind(m_prop->on_change);
+            auto name = m_prop->get();
+            if (name) {
+                tracker<T>::set_name(name);
+            }
+        }
+    }
+
+    using tracker<T>::on_acquire;
+    using tracker<T>::on_lose;
 };
 
 /*
