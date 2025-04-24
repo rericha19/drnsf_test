@@ -1,3 +1,15 @@
+# TEST
+* changed CMakeLists.txt
+* installed vcpkg \
+  > git clone https://github.com/microsoft/vcpkg.git \
+  > cd vcpkg \
+  > .\bootstrap-vcpkg.bat \
+  > .\vcpkg integrate install \
+  > vcpkg install libepoxy \
+  > vcpkg install cairo 
+* installed cairo and epoxy via vcpkg (`vcpkg install cairo`, `vcpkg install libepoxy`)  
+* installed pkgconfig via choco (`choco install pkgconfiglite`) 
+
 # DRNSF #
 __Copyright (C) 2017-2020  DRNSF contributors__
 
